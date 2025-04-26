@@ -1,0 +1,10 @@
+# Pokedex Discord Bot
+This is a personal project for me and my friends to handily view basic informations about a pokemon
+
+Feel free to add to your discord server https://discord.com/oauth2/authorize?client_id=1363592155934888118
+I can't guarante it to be working 24/7 (looking for a way to host it somewhere. for now it runs on my desktop)
+
+# Basic Usage
+/pokedex [pokemon's name]
+
+it will pop up suggestions as you type it
