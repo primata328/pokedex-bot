@@ -3,11 +3,12 @@ import win32event
 import win32service
 import servicemanager
 import pokedex
-import os
+import sys
 
 class PokedexService(win32serviceutil.ServiceFramework):
     _svc_name_ = 'pokedex-bot'
     _svc_display_name_ = 'Pokedex Bot'
+    _svc_type_ = win32service.SERVICE_AUTO_START
     
     def __init__(self, args):
         super().__init__(args)
@@ -34,5 +35,10 @@ class PokedexService(win32serviceutil.ServiceFramework):
             pokedex.main()
 
 if __name__ == '__main__':
-    win32serviceutil.HandleCommandLine(PokedexService)
+    if len(sys.argv) == 1:
+        servicemanager.Initialize()
+        servicemanager.PrepareToHostSingle(PokedexService)
+        servicemanager.StartServiceCtrlDispatcher()
+    else:
+        win32serviceutil.HandleCommandLine(PokedexService)
         
