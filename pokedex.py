@@ -77,12 +77,12 @@ async def pokemon_autocomplete(interaction: Interaction, current: str) -> list[C
 async def search_pokemon(interaction: Interaction, pokemon: str):  
     info1, info2 = get_pokemon_info(pokemon)
     
-    if info2 and info2:
+    if info1 or info2:
         output = format_pokemon_info(info1, info2)
     else:
         output = Embed(title='Pokemon Not Found')
     try:
-        await interaction.response.send_message(embed=output, delete_after=300.0)
+        await interaction.response.send_message(embed=output, delete_after=60.0)
         print(f'{interaction.guild.name} {interaction.user} {pokemon}')
     except Exception as e:
         print(e)  
@@ -96,7 +96,7 @@ def get_pokemon_info(name: str) -> dict | None:
         data1 = response.json()
     else:
         print(f'Failed to retrieve data {response.status_code}')
-        return
+        data1 = None
     
     pokemon_id = data1['id']
     url: str = f'{base_url}/type/{pokemon_id}'
@@ -106,6 +106,7 @@ def get_pokemon_info(name: str) -> dict | None:
         data2 = response.json()
     else:
         print(f'Failed to retrieve data {response.status_code}')
+        data2 = None
     
     return data1, data2
 
@@ -125,8 +126,8 @@ def add_emoji(string: str) -> str:
             string = string.capitalize() + ':ice_cube:'
         case 'grass':
             string = string.capitalize() + ':leaves:'
-        case 'eletric':
-            string = string.capitalize() + ':zap::high_voltage:'
+        case 'electric':
+            string = string.capitalize() + ':zap:'
         case 'rock':
             string = string.capitalize() + ':rock:'
         case 'ground':
@@ -142,7 +143,7 @@ def add_emoji(string: str) -> str:
         case 'dark':
             string = string.capitalize() + ':dark_sunglasses:'
         case 'psychic':
-            string = string.capitalize() + ':clown::clown_face:'
+            string = string.capitalize() + ':clown:'
         case 'dragon':
             string = string.capitalize() + ':dragon:'
         case _:
@@ -152,29 +153,36 @@ def add_emoji(string: str) -> str:
 
 def format_pokemon_info(info1: dict, info2: dict) -> Embed:
     
-    sprite: str = info1['sprites']['front_default']    
-    name: str = info1['name']
-    height: int = info1['height']
-    weight: int = info1['weight']
-    types: list[str] = []
-    weaknesses: list[str] = []
+    if info1:
+        sprite: str = info1['sprites']['front_default']    
+        name: str = info1['name']
+        height: int = info1['height']
+        weight: int = info1['weight']
+        types: list[str] = []
     
-    for type in info1['types']:
-        type: str = type['type']['name']
-        type = add_emoji(type)
-        types.append(type)
+        for type in info1['types']:
+            type: str = type['type']['name']
+            type = add_emoji(type)
+            types.append(type)
     
-    for weakness in info2['damage_relations']['double_damage_from']:
-        weakness = weakness['name']
-        weakness = add_emoji(weakness)
-        weaknesses.append(weakness)
     
-    output = Embed(title=name.upper())
-    output.set_thumbnail(url=sprite)
-    output.add_field(name='Height', value=f'{height / 10}m', inline=True)
-    output.add_field(name='Weight', value=f'{weight / 10}kg', inline=True)
-    output.add_field(name='Types', value=' '.join(types), inline=False)
-    output.add_field(name='Weaknesses', value=' '.join(weaknesses), inline=True)
+        output = Embed(title=name.upper())
+        output.set_thumbnail(url=sprite)
+        output.add_field(name='Height', value=f'{height / 10}m', inline=True)
+        output.add_field(name='Weight', value=f'{weight / 10}kg', inline=True)
+        output.add_field(name='Types', value='/'.join(types), inline=False)
+    
+    if info2:
+        weaknesses: list[str] = []
+        
+        for weakness in info2['damage_relations']['double_damage_from']:
+            weakness = weakness['name']
+            weakness = add_emoji(weakness)
+            weaknesses.append(weakness)
+        
+        output.add_field(name='Weaknesses', value='/'.join(weaknesses), inline=True)
+    else:
+        output.add_field(name='Weaknesses', value='Not Found', inline=True)
     
     return output
 
