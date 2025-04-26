@@ -31,7 +31,7 @@ class PokedexService(win32serviceutil.ServiceFramework):
     
     def main(self):
         while self.is_running:
-            pokedex.init()
+            pokedex.main()
 
 if __name__ == '__main__':
     win32serviceutil.HandleCommandLine(PokedexService)

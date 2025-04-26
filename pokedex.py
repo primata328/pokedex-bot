@@ -1,58 +1,104 @@
 import os
 import requests
-import logging
-from dotenv import load_dotenv
-from discord import Intents, Interaction, Object, app_commands
+# import logging
+import pickle
+import dotenv
+from dotenv import load_dotenv, set_key
+from discord import Intents, Interaction, Object, Embed, Guild, app_commands
 from discord.ext.commands import Bot
 from discord.abc import Snowflake
 from discord.app_commands import Choice
 
-logger = logging.getLogger()
-handler = logging.FileHandler(filename='pokedex.log', mode='w', encoding='utf-8')
-logger.addHandler(handler)
+# logger = logging.getLogger()
+# handler = logging.FileHandler(filename='pokedex.log', mode='w', encoding='utf-8')
+# logger.addHandler(handler)
 
 intents: Intents = Intents.default()
 intents.message_content = True
 
 bot: Bot = Bot(command_prefix='/', intents=intents)
 
+def get_guilds_id() -> list[str]:
+    load_dotenv(override=True)
+    return os.getenv('GUILDS_ID').split(',')
+
+def add_guild_id(guild_id: str) -> None:
+    print(f'Registing a new guild ID ({guild_id})')
+    set_key('.env', 'GUILDS_ID', os.getenv('GUILDS_ID') + f',{guild_id}')
+
+def remove_guild_id(guild_id: str) -> None:
+    print(f'Removing a guild ID register ({guild_id})')
+    edited_guilds_id = get_guilds_id()
+    edited_guilds_id.remove(guild_id)
+    set_key('.env', 'GUILDS_ID', ','.join(edited_guilds_id))
+
+def update_guilds_id() -> None:
+    registed_guilds_id = get_guilds_id()
+    non_registed_guilds_id = list(str(guild.id) for guild in bot.guilds)
+    
+    for guild_id in non_registed_guilds_id:
+        if guild_id not in registed_guilds_id:
+            add_guild_id(guild_id)
+    
+    for guild_id in registed_guilds_id:
+        if guild_id not in non_registed_guilds_id:
+            remove_guild_id(guild_id)   
+    
 @bot.event
 async def on_ready():
-    logger.info(f'{bot.user} is now running!')
-    
+    print(f'{bot.user} is now running!')
     try:
         for guild in bot.guilds:
             await bot.tree.sync(guild=guild)
-            logger.info(f'Synced to {guild.name} (ID: {guild.id})')   
+            print(f'Synced to {guild.name} (ID: {guild.id})')
+            update_guilds_id()
     except Exception as e:
-        logger.error(e)
+        print(e)
 
-load_dotenv()
+@bot.event
+async def on_guild_join(guild: Guild):
+    add_guild_id(str(guild.id))
+    print(f'Joined to {guild.name}')
+    
+    try:    
+        await bot.tree.sync(guild=guild)
+        print(f'Synced to {guild.name} (ID: {guild.id})')
+    except Exception as e:
+        print(e)
 
-guilds_id: list[Snowflake] = list(map(lambda guild_id: Object(id=guild_id), os.getenv('GUILDS_ID').split(',')))
+@bot.event
+async def on_guild_remove(guild: Guild):
+    remove_guild_id(str(guild.id))
+    print(f'Existed {guild.name}')
+
+with open('pokenames.data', 'rb') as file:
+    pokemons = pickle.load(file)
 
 async def pokemon_autocomplete(interaction: Interaction, current: str) -> list[Choice[str]]:
-    pokemons = ['pikachu', 'bulbasaur', 'squirtle', 'charmander']
-    return [Choice(name=pokemon, value=pokemon) for pokemon in pokemons if current.lower() in pokemon.lower()]
+    return [Choice(name=pokemon, value=pokemon) for pokemon in pokemons if current.lower() in pokemon.lower()][:8]
+
+# try:
+# id_list = list(map(lambda guild_id: Object(id=guild_id), get_guilds_id()))
+# except Exception as e:
+#     print(e)
 
 # @commands.command(name='pokedex')
-@bot.tree.command(name='pokedex', description='get information about a pokemon', guilds=guilds_id)
+@bot.tree.command(name='pokedex', description='get information about a pokemon', guilds=list(map(lambda guild_id: Object(id=guild_id), get_guilds_id())))
 @app_commands.describe(pokemon='name of the pokemon you wish to search')
 @app_commands.autocomplete(pokemon=pokemon_autocomplete)
 # @app_commands.choices(pokemon=[Choice(name='pikachu', value=1), Choice(name='bulbasaur', value=2), Choice(name='squirtle', value=3)])
 async def search_pokemon(interaction: Interaction, pokemon: str):  
-    info: dict[any] | None = get_pokemon_info(pokemon)
+    info = get_pokemon_info(pokemon)
     
     if info:
-        msg: str = format_pokemon_info(info)
+        output = format_pokemon_info(info)
     else:
-        msg: str = "Pokemon not Found"
-    
+        output = Embed(title='Pokemon Not Found')
     try:
-        await interaction.response.send_message(content=msg, delete_after=300.0)
-        logger.info(f'{interaction.guild.name} {interaction.user} {pokemon}')
+        await interaction.response.send_message(embed=output, delete_after=300.0)
+        print(f'{interaction.guild.name} {interaction.user} {pokemon}')
     except Exception as e:
-        logger.error(e)  
+        print(e)  
     
 
 # async def handle_response(response: InteractionResponse, msg: str):
@@ -65,45 +111,36 @@ def get_pokemon_info(name: str) -> dict | None:
     response = requests.get(url)
 
     if response.status_code == 200:
-        logger.info(f'Data retrieved')
         pokemon_data: dict = response.json()
         return pokemon_data
     else:
-        logger.debug(f'Failed to retrieve data {response.status_code}')
+        print(f'Failed to retrieve data {response.status_code}')
 
-def format_pokemon_info(info: dict[any]) -> str:
-        
+def format_pokemon_info(info: dict[any]) -> Embed:
+    
+    sprite: str = info['sprites']['front_default']    
     name: str = info['name']
     height: int = info['height']
     weight: int = info['weight']
-    types: list = info['types']
-    
-    # print(f"{type} {len(types)}")
-    
-    output: str = f'Name:    {name.capitalize()}\n'
-    
-    for index, type in enumerate(types):
-        type: dict = type['type']
+    types: list[str] = []
+    for type in info['types']:
+        type: any = type['type']
         type: str = type['name']
-        if len(types) <= 1:
-            output += f'Type:    {type.capitalize()}\n'
-            break
-        else:
-            output += f'Type {index + 1}:    {type.capitalize()}\n'
+        types.append(type)
     
-    output += f'Height:    {height / 10}m\n'
-    output += f'Weight:    {weight / 10}kg'
+    output = Embed(title=name.upper())
+    output.set_image(url=sprite)
+    output.add_field(name='Height', value=f'{height / 10}m', inline=True)
+    output.add_field(name='Weight', value=f'{weight / 10}kg', inline=True)
+    output.add_field(name='Types', value=' / '.join(type.capitalize() for type in types), inline=False)
     
     return output
 
-# @bot.event
-# async def on_app_command_completion(interaction: Interaction, _command: Command):
-#     try:
-#         print(interaction.message)
-#     except Exception as e:
-#         print(e)
-
+load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 
-def init():
-    bot.run(token=TOKEN, root_logger=True, log_handler= handler)
+def main():
+    bot.run(token=TOKEN)
+
+if __name__ == '__main__':
+    main()
