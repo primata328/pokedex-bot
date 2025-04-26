@@ -1,17 +1,10 @@
 import os
 import requests
-# import logging
 import pickle
-import dotenv
 from dotenv import load_dotenv, set_key
 from discord import Intents, Interaction, Object, Embed, Guild, app_commands
 from discord.ext.commands import Bot
-from discord.abc import Snowflake
 from discord.app_commands import Choice
-
-# logger = logging.getLogger()
-# handler = logging.FileHandler(filename='pokedex.log', mode='w', encoding='utf-8')
-# logger.addHandler(handler)
 
 intents: Intents = Intents.default()
 intents.message_content = True
@@ -77,12 +70,6 @@ with open('pokenames.data', 'rb') as file:
 async def pokemon_autocomplete(interaction: Interaction, current: str) -> list[Choice[str]]:
     return [Choice(name=pokemon, value=pokemon) for pokemon in pokemons if current.lower() in pokemon.lower()][:8]
 
-# try:
-# id_list = list(map(lambda guild_id: Object(id=guild_id), get_guilds_id()))
-# except Exception as e:
-#     print(e)
-
-# @commands.command(name='pokedex')
 @bot.tree.command(name='pokedex', description='get information about a pokemon', guilds=list(map(lambda guild_id: Object(id=guild_id), get_guilds_id())))
 @app_commands.describe(pokemon='name of the pokemon you wish to search')
 @app_commands.autocomplete(pokemon=pokemon_autocomplete)
@@ -99,11 +86,6 @@ async def search_pokemon(interaction: Interaction, pokemon: str):
         print(f'{interaction.guild.name} {interaction.user} {pokemon}')
     except Exception as e:
         print(e)  
-    
-
-# async def handle_response(response: InteractionResponse, msg: str):
-#     response.send_message(msg)
-#     response.edit_message(delete_after=5.0)
 
 def get_pokemon_info(name: str) -> dict | None:
     base_url: str = 'https://pokeapi.co/api/v2/'
