@@ -12,7 +12,7 @@ intents.message_content = True
 bot: Bot = Bot(command_prefix='/', intents=intents)
 
 def get_guilds_id() -> list[str]:
-    load_dotenv(override=True)
+    load_dotenv(dotenv_path='C:\\Users\\Marcos Felipe\\Documents\Projects\\python\\pokedex\\.env', override=True)
     return os.getenv('GUILDS_ID').split(',')
 
 def add_guild_id(guild_id: str) -> None:
@@ -64,7 +64,7 @@ async def on_guild_remove(guild: Guild):
     remove_guild_id(str(guild.id))
     print(f'Existed {guild.name}')
 
-with open('pokenames.data', 'rb') as file:
+with open('C:\\Users\\Marcos Felipe\\Documents\\Projects\\python\\pokedex\\pokenames.data', 'rb') as file:
     pokemons = pickle.load(file)
 
 async def pokemon_autocomplete(interaction: Interaction, current: str) -> list[Choice[str]]:
@@ -166,7 +166,7 @@ def format_pokemon_info(info1: dict, info2: dict) -> Embed:
             types.append(type)
     
     
-        output = Embed(title=name.upper())
+        output = Embed(title=name.upper().replace('-', ' '))
         output.set_thumbnail(url=sprite)
         output.add_field(name='Height', value=f'{height / 10}m', inline=True)
         output.add_field(name='Weight', value=f'{weight / 10}kg', inline=True)
@@ -186,7 +186,7 @@ def format_pokemon_info(info1: dict, info2: dict) -> Embed:
     
     return output
 
-load_dotenv()
+load_dotenv(dotenv_path='C:\\Users\\Marcos Felipe\\Documents\\Projects\\python\\pokedex\\.env')
 TOKEN = os.getenv('DISCORD_TOKEN')
 
 def main():

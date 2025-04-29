@@ -20,6 +20,7 @@ class PokedexService(win32serviceutil.ServiceFramework):
         self.ReportServiceStatus(win32service.SERVICE_STOP_PENDING)
         self.is_running = False
         win32event.SetEvent(self.stop_event)
+        self.ReportServiceStatus(win32service.SERVICE_STOPPED)
     
     def SvcRun(self):
         print('Service is starting...')
@@ -29,6 +30,7 @@ class PokedexService(win32serviceutil.ServiceFramework):
             (self._svc_name_,'')
         )
         self.main()
+        self.ReportServiceStatus(win32service.SERVICE_RUNNING)
     
     def main(self):
         while self.is_running:
