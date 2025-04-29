@@ -119,7 +119,7 @@ def add_emoji(string: str) -> str:
         case 'fighting':
             string = string.capitalize() + ':punch:'
         case 'fire':
-            string = string.capitalize() + ':fire::flame:'
+            string = string.capitalize() + ':fire:'
         case 'water':
             string = string.capitalize() + ':droplet:'
         case 'ice':
