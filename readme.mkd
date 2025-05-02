@@ -9,4 +9,5 @@ It may be offline due to be running on my PC
 
 it will pop up suggestions as you type it
 
-![Showcase](pokedex.mp4)
+## Showcase
+https://github.com/user-attachments/assets/820a0545-ebab-4528-b625-f57a2e859a04
