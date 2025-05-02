@@ -8,7 +8,6 @@ import sys
 class PokedexService(win32serviceutil.ServiceFramework):
     _svc_name_ = 'pokedex-bot'
     _svc_display_name_ = 'Pokedex Bot'
-    _svc_type_ = win32service.SERVICE_AUTO_START
     
     def __init__(self, args):
         super().__init__(args)
@@ -30,7 +29,6 @@ class PokedexService(win32serviceutil.ServiceFramework):
             (self._svc_name_,'')
         )
         self.main()
-        self.ReportServiceStatus(win32service.SERVICE_RUNNING)
     
     def main(self):
         while self.is_running:

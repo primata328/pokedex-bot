@@ -12,7 +12,7 @@ intents.message_content = True
 bot: Bot = Bot(command_prefix='/', intents=intents)
 
 def get_guilds_id() -> list[str]:
-    load_dotenv(dotenv_path='C:\\Users\\Marcos Felipe\\Documents\Projects\\python\\pokedex\\.env', override=True)
+    load_dotenv(dotenv_path='C:\\Users\\Marcos Felipe\\Documents\\Projects\\python\\pokedex\\.env', override=True)
     return os.getenv('GUILDS_ID').split(',')
 
 def add_guild_id(guild_id: str) -> None:
@@ -75,14 +75,14 @@ async def pokemon_autocomplete(interaction: Interaction, current: str) -> list[C
 @app_commands.autocomplete(pokemon=pokemon_autocomplete)
 # @app_commands.choices(pokemon=[Choice(name='pikachu', value=1), Choice(name='bulbasaur', value=2), Choice(name='squirtle', value=3)])
 async def search_pokemon(interaction: Interaction, pokemon: str):  
-    info1, info2 = get_pokemon_info(pokemon)
+    info = get_pokemon_info(pokemon)
     
-    if info1 or info2:
-        output = format_pokemon_info(info1, info2)
+    if info:
+        output = format_pokemon_info(info)
     else:
         output = Embed(title='Pokemon Not Found')
     try:
-        await interaction.response.send_message(embed=output, delete_after=60.0)
+        await interaction.response.send_message(embed=output)
         print(f'{interaction.guild.name} {interaction.user} {pokemon}')
     except Exception as e:
         print(e)  
@@ -93,24 +93,19 @@ def get_pokemon_info(name: str) -> dict | None:
     response = requests.get(url)
 
     if response.status_code == 200:
-        data1 = response.json()
+        data = response.json()
     else:
         print(f'Failed to retrieve data {response.status_code}')
-        data1 = None
+        data = None
     
-    pokemon_id = data1['id']
-    url: str = f'{base_url}/type/{pokemon_id}'
-    response = requests.get(url)
-    
-    if response.status_code == 200:
-        data2 = response.json()
-    else:
-        print(f'Failed to retrieve data {response.status_code}')
-        data2 = None
-    
-    return data1, data2
+    return data
 
 def add_emoji(string: str) -> str:
+    prefix = False
+    if string.startswith('2x'):
+        prefix = True
+        string = string.removeprefix('2x')
+    
     match string:
         case 'normal':
             string = string.capitalize() + ':bust_in_silhouette:'
@@ -146,45 +141,143 @@ def add_emoji(string: str) -> str:
             string = string.capitalize() + ':clown:'
         case 'dragon':
             string = string.capitalize() + ':dragon:'
+        case 'steel':
+            string = string.capitalize() + ':gear:'
         case _:
             string = string.capitalize()
         
-    return string
+    if prefix:
+        return '2x' + string
+    else:
+        return string
 
-def format_pokemon_info(info1: dict, info2: dict) -> Embed:
+def format_pokemon_info(info: dict) -> Embed:
     
-    if info1:
-        sprite: str = info1['sprites']['front_default']    
-        name: str = info1['name']
-        height: int = info1['height']
-        weight: int = info1['weight']
+    if info:
+        sprite: str = info['sprites']['front_default']    
+        name: str = info['name']
+        height: int = info['height']
+        weight: int = info['weight']
         types: list[str] = []
     
-        for type in info1['types']:
+        for type in info['types']:
             type: str = type['type']['name']
-            type = add_emoji(type)
             types.append(type)
-    
+            
+        types.sort()
     
         output = Embed(title=name.upper().replace('-', ' '))
         output.set_thumbnail(url=sprite)
         output.add_field(name='Height', value=f'{height / 10}m', inline=True)
         output.add_field(name='Weight', value=f'{weight / 10}kg', inline=True)
-        output.add_field(name='Types', value='/'.join(types), inline=False)
+        output.add_field(name='Types', value='/'.join([add_emoji(type) for type in types]), inline=False)
     
-    if info2:
-        weaknesses: list[str] = []
+    
+        weaknesses: list[str] = calc_weakness(types)
         
-        for weakness in info2['damage_relations']['double_damage_from']:
-            weakness = weakness['name']
-            weakness = add_emoji(weakness)
-            weaknesses.append(weakness)
+        for weakness in weaknesses:
+            if weaknesses.count(weakness) > 1:
+                # weaknesses = list(dict.fromkeys(weaknesses))
+                weaknesses.remove(weakness)
+                weaknesses[weaknesses.index(weakness)] = '2x' + weakness
+                
+        weaknesses.sort()
         
-        output.add_field(name='Weaknesses', value='/'.join(weaknesses), inline=True)
-    else:
-        output.add_field(name='Weaknesses', value='Not Found', inline=True)
+        output.add_field(name='Weaknesses', value=f'{'/'.join(list(add_emoji(weakness) for weakness in weaknesses))}', inline=True)
     
     return output
+
+def calc_weakness(types: list[str]) -> list[str]:
+    weaknesses: list[str] = []
+    resistances: list[str] = []
+    immunities: list[str] = []
+    
+    for type in types:
+        match type:
+            case 'normal':
+                weaknesses.extend(['fighting'])
+                resistances.extend([])
+                immunities.extend(['ghost'])
+            case 'fire':
+                weaknesses.extend(['water', 'ground', 'rock'])
+                resistances.extend(['fire', 'grass', 'ice', 'bug', 'steel', 'fairy'])
+                immunities.extend([])
+            case 'water':
+                weaknesses.extend(['electric', 'grass'])
+                resistances.extend(['fire', 'water', 'ice', 'steel'])
+                immunities.extend([])
+            case 'electric':
+                weaknesses.extend(['ground'])
+                resistances.extend(['electric', 'flying', 'steel'])
+                immunities.extend([])
+            case 'grass':
+                weaknesses.extend(['fire', 'ice', 'poison', 'flying', 'bug'])
+                resistances.extend(['water', 'electric', 'grass', 'ground'])
+                immunities.extend([])
+            case 'ice':
+                weaknesses.extend(['fire', 'fighting', 'rock', 'steel'])
+                resistances.extend(['ice'])
+                immunities.extend([])
+            case 'fighting':
+                weaknesses.extend(['flying', 'psychic', 'fairy'])
+                resistances.extend(['bug', 'rock', 'dark'])
+                immunities.extend([])
+            case 'poison':
+                weaknesses.extend(['ground', 'psychic'])
+                resistances.extend(['grass', 'fighting', 'poison', 'bug', 'fairy'])
+                immunities.extend([])
+            case 'ground':
+                weaknesses.extend(['water', 'grass', 'ice'])
+                resistances.extend(['poison', 'rock'])
+                immunities.extend(['electric'])
+            case 'flying':
+                weaknesses.extend(['electric', 'ice', 'rock'])
+                resistances.extend(['grass', 'fighting', 'bug'])
+                immunities.extend(['ground'])
+            case 'psychic':
+                weaknesses.extend(['bug', 'ghost', 'dark'])
+                resistances.extend(['fighting', 'psychic'])
+                immunities.extend([])
+            case 'bug':
+                weaknesses.extend(['fire', 'flying', 'rock'])
+                resistances.extend(['grass', 'fighting', 'ground'])
+                immunities.extend([])
+            case 'rock':
+                weaknesses.extend(['water', 'grass', 'fighting', 'ground', 'steel'])
+                resistances.extend(['normal', 'fire', 'poison', 'flying'])
+                immunities.extend([])
+            case 'ghost':
+                weaknesses.extend(['ghost', 'dark'])
+                resistances.extend(['poison', 'bug'])
+                immunities.extend(['normal', 'fighting'])
+            case 'dragon':
+                weaknesses.extend(['ice', 'dragon', 'fairy'])
+                resistances.extend(['fire', 'water', 'electric', 'grass'])
+                immunities.extend([])
+            case 'dark':
+                weaknesses.extend(['fighting', 'bug', 'fairy'])
+                resistances.extend(['ghost', 'dark'])
+                immunities.extend(['psychic'])
+            case 'steel':
+                weaknesses.extend(['fire', 'fighting', 'ground'])
+                resistances.extend(['normal', 'grass', 'ice', 'flying', 'psychic', 'bug', 'rock', 'dragon', 'steel', 'fairy'])
+                immunities.extend(['poison'])
+            case 'fairy':
+                weaknesses.extend(['poison', 'steel'])
+                resistances.extend(['fighting', 'bug', 'dark'])
+                immunities.extend(['dragon'])
+            case _:
+                weaknesses.extend(['error'])  
+
+    for resistance in resistances:
+        if weaknesses.count(resistance) > 0:
+            weaknesses.remove(resistance)
+    
+    for immunity in immunities:
+        if weaknesses.count(immunity) > 0:
+            weaknesses.remove(immunity)
+    
+    return weaknesses
 
 load_dotenv(dotenv_path='C:\\Users\\Marcos Felipe\\Documents\\Projects\\python\\pokedex\\.env')
 TOKEN = os.getenv('DISCORD_TOKEN')
