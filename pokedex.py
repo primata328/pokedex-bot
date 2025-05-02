@@ -82,7 +82,7 @@ async def search_pokemon(interaction: Interaction, pokemon: str):
     else:
         output = Embed(title='Pokemon Not Found')
     try:
-        await interaction.response.send_message(embed=output)
+        await interaction.response.send_message(embed=output, delete_after=180.0)
         print(f'{interaction.guild.name} {interaction.user} {pokemon}')
     except Exception as e:
         print(e)  
