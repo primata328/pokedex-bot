@@ -12,7 +12,7 @@ intents.message_content = True
 bot: Bot = Bot(command_prefix='/', intents=intents)
 
 def get_guilds_id() -> list[str]:
-    load_dotenv(dotenv_path='C:\\Users\\Marcos Felipe\\Documents\\Projects\\python\\pokedex\\.env', override=True)
+    load_dotenv()
     return os.getenv('GUILDS_ID').split(',')
 
 def add_guild_id(guild_id: str) -> None:
@@ -64,7 +64,7 @@ async def on_guild_remove(guild: Guild):
     remove_guild_id(str(guild.id))
     print(f'Existed {guild.name}')
 
-with open('C:\\Users\\Marcos Felipe\\Documents\\Projects\\python\\pokedex\\pokenames.data', 'rb') as file:
+with open('pokenames.data', 'rb') as file:
     pokemons = pickle.load(file)
 
 async def pokemon_autocomplete(interaction: Interaction, current: str) -> list[Choice[str]]:
@@ -183,7 +183,7 @@ def format_pokemon_info(info: dict) -> Embed:
                 
         weaknesses.sort()
         
-        output.add_field(name='Weaknesses', value=f'{'/'.join(list(add_emoji(weakness) for weakness in weaknesses))}', inline=True)
+        output.add_field(name='Weaknesses', value=f'{"/".join(list(add_emoji(weakness) for weakness in weaknesses))}', inline=True)
     
     return output
 
@@ -279,8 +279,8 @@ def calc_weakness(types: list[str]) -> list[str]:
     
     return weaknesses
 
-load_dotenv(dotenv_path='C:\\Users\\Marcos Felipe\\Documents\\Projects\\python\\pokedex\\.env')
-TOKEN = os.getenv('DISCORD_TOKEN')
+load_dotenv()
+TOKEN = os.getenv('DISCORD_TOKEN') 
 
 def main():
     bot.run(token=TOKEN)
