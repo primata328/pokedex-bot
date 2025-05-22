@@ -1,31 +1,36 @@
 import os
 import requests
 import pickle
+import logging
+from random import randint
 from dotenv import load_dotenv, set_key
 from discord import Intents, Interaction, Object, Embed, Guild, app_commands
 from discord.ext.commands import Bot
 from discord.app_commands import Choice
 
-intents: Intents = Intents.default()
+logger = logging.Logger(__name__)
+logging.basicConfig(filename='pokedex.log')
+
+intents = Intents.default()
 intents.message_content = True
 
-bot: Bot = Bot(command_prefix='/', intents=intents)
+bot = Bot(command_prefix='/', intents=intents)
 
-def get_guilds_id() -> list[str]:
+def get_guilds_id():
     load_dotenv()
     return os.getenv('GUILDS_ID').split(',')
 
-def add_guild_id(guild_id: str) -> None:
-    print(f'Registing a new guild ID ({guild_id})')
+def add_guild_id(guild_id):
+    logger.info(f'Registing a new guild ID ({guild_id})')
     set_key('.env', 'GUILDS_ID', os.getenv('GUILDS_ID') + f',{guild_id}')
 
-def remove_guild_id(guild_id: str) -> None:
-    print(f'Removing a guild ID register ({guild_id})')
+def remove_guild_id(guild_id):
+    logger.info(f'Removing a guild ID register ({guild_id})')
     edited_guilds_id = get_guilds_id()
     edited_guilds_id.remove(guild_id)
     set_key('.env', 'GUILDS_ID', ','.join(edited_guilds_id))
 
-def update_guilds_id() -> None:
+def update_guilds_id():
     registed_guilds_id = get_guilds_id()
     non_registed_guilds_id = list(str(guild.id) for guild in bot.guilds)
     
@@ -39,42 +44,44 @@ def update_guilds_id() -> None:
     
 @bot.event
 async def on_ready():
-    print(f'{bot.user} is now running!')
+    logger.info(f'{bot.user} is now running!')
     try:
         for guild in bot.guilds:
             await bot.tree.sync(guild=guild)
-            print(f'Synced to {guild.name} (ID: {guild.id})')
+            logger.info(f'Synced to {guild.name} (ID: {guild.id})')
             update_guilds_id()
     except Exception as e:
-        print(e)
+        logger.error(e)
 
 @bot.event
 async def on_guild_join(guild: Guild):
     add_guild_id(str(guild.id))
-    print(f'Joined to {guild.name}')
+    logger.info(f'Joined to {guild.name}')
     
     try:    
         await bot.tree.sync(guild=guild)
-        print(f'Synced to {guild.name} (ID: {guild.id})')
+        logger.info(f'Synced to {guild.name} (ID: {guild.id})')
     except Exception as e:
-        print(e)
+        logger.error(e)
 
 @bot.event
 async def on_guild_remove(guild: Guild):
     remove_guild_id(str(guild.id))
-    print(f'Existed {guild.name}')
+    logger.info(f'Existed {guild.name}')
 
 with open('pokenames.data', 'rb') as file:
     pokemons = pickle.load(file)
 
-async def pokemon_autocomplete(interaction: Interaction, current: str) -> list[Choice[str]]:
+async def pokemon_autocomplete(interaction, current):
     return [Choice(name=pokemon, value=pokemon) for pokemon in pokemons if current.lower() in pokemon.lower()][:8]
 
 @bot.tree.command(name='pokedex', description='get information about a pokemon', guilds=list(map(lambda guild_id: Object(id=guild_id), get_guilds_id())))
 @app_commands.describe(pokemon='name of the pokemon you wish to search')
 @app_commands.autocomplete(pokemon=pokemon_autocomplete)
-# @app_commands.choices(pokemon=[Choice(name='pikachu', value=1), Choice(name='bulbasaur', value=2), Choice(name='squirtle', value=3)])
-async def search_pokemon(interaction: Interaction, pokemon: str):  
+async def search_pokemon(interaction, pokemon):
+    if pokemon.lower() == 'random':
+         pokemon = pokemons[randint(0, len(pokemons))]
+         
     info = get_pokemon_info(pokemon)
     
     if info:
@@ -82,25 +89,25 @@ async def search_pokemon(interaction: Interaction, pokemon: str):
     else:
         output = Embed(title='Pokemon Not Found')
     try:
-        await interaction.response.send_message(embed=output, delete_after=180.0)
-        print(f'{interaction.guild.name} {interaction.user} {pokemon}')
+        await interaction.response.send_message(embed=output, delete_after=300.0)
+        logger.info(f'{interaction.guild.name} {interaction.user} {pokemon}')
     except Exception as e:
-        print(e)  
+        logger.error(e)  
 
-def get_pokemon_info(name: str) -> dict | None:
-    base_url: str = 'https://pokeapi.co/api/v2/'
-    url: str = f'{base_url}/pokemon/{name}'
+def get_pokemon_info(name):
+    base_url = 'https://pokeapi.co/api/v2/'
+    url = f'{base_url}/pokemon/{name}'
     response = requests.get(url)
 
     if response.status_code == 200:
         data = response.json()
     else:
-        print(f'Failed to retrieve data {response.status_code}')
+        logger.warning(f'Failed to retrieve data {response.status_code}')
         data = None
     
     return data
 
-def add_emoji(string: str) -> str:
+def add_emoji(string):
     prefix = False
     if string.startswith('2x'):
         prefix = True
@@ -138,7 +145,7 @@ def add_emoji(string: str) -> str:
         case 'dark':
             string = string.capitalize() + ':dark_sunglasses:'
         case 'psychic':
-            string = string.capitalize() + ':clown:'
+            string = string.capitalize() + ':eye:'
         case 'dragon':
             string = string.capitalize() + ':dragon:'
         case 'steel':
@@ -151,17 +158,17 @@ def add_emoji(string: str) -> str:
     else:
         return string
 
-def format_pokemon_info(info: dict) -> Embed:
+def format_pokemon_info(info):
     
     if info:
-        sprite: str = info['sprites']['front_default']    
-        name: str = info['name']
-        height: int = info['height']
-        weight: int = info['weight']
-        types: list[str] = []
+        sprite = info['sprites']['front_default']    
+        name = info['name']
+        height = info['height']
+        weight = info['weight']
+        types = []
     
         for type in info['types']:
-            type: str = type['type']['name']
+            type = type['type']['name']
             types.append(type)
             
         types.sort()
@@ -173,11 +180,10 @@ def format_pokemon_info(info: dict) -> Embed:
         output.add_field(name='Types', value='/'.join([add_emoji(type) for type in types]), inline=False)
     
     
-        weaknesses: list[str] = calc_weakness(types)
+        weaknesses = calc_weakness(types)
         
         for weakness in weaknesses:
             if weaknesses.count(weakness) > 1:
-                # weaknesses = list(dict.fromkeys(weaknesses))
                 weaknesses.remove(weakness)
                 weaknesses[weaknesses.index(weakness)] = '2x' + weakness
                 
@@ -187,10 +193,10 @@ def format_pokemon_info(info: dict) -> Embed:
     
     return output
 
-def calc_weakness(types: list[str]) -> list[str]:
-    weaknesses: list[str] = []
-    resistances: list[str] = []
-    immunities: list[str] = []
+def calc_weakness(types):
+    weaknesses = []
+    resistances = []
+    immunities = []
     
     for type in types:
         match type:

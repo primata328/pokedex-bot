@@ -1,4 +1,4 @@
 .env
-pokedex.log
+*.log
 test.*
 tests/
